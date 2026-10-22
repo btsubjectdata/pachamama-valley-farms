@@ -1,12 +1,12 @@
-# Pachamama Valley Farms logo
+# Pachamama Valley Farm logo
 
-Created October 22, 2026. It replaces the earlier badge, whose arched text ran into the bee and whose stars cut through letters.
+Created October 22, 2026. Updated the same day for the name change to Pachamama Valley Farm (no s); the legal entity is still Pachamama Valley Farms LLC. It replaces the earlier badge, whose arched text ran into the bee and whose stars cut through letters.
 
 ## What it is
 
 The logo is a round badge with two parts.
 
-- **Outer ring (dark pine green):** "PACHAMAMA VALLEY FARMS" arches across the top and "LOCAL TEXAS HONEY" runs along the bottom, both in cream. Two cream stars sit in the gaps between them.
+- **Outer ring (dark pine green):** "PACHAMAMA VALLEY FARM" arches across the top and "LOCAL TEXAS HONEY" runs along the bottom, both in cream. Two cream stars sit in the gaps between them.
 - **Inner scene:** an orange sunburst with a pale sun, a honeybee centered in the sun, and green hills. Three honeycomb cells with a single honey drip sit on the hills.
 
 There is also a **simplified mark**, which is the inner scene with no text. Use it where the full badge would be too small to read.
@@ -56,12 +56,12 @@ The lettering is **Oswald Bold** (SIL Open Font License, free for commercial use
 
 ## Where it's used now
 
-- **pachamamavalleyfarms.com:**
+- **pachamamavalleyfarm.com:**
   - the full badge at the top of the hero and in the footer
   - the simplified mark in the header and as the browser tab icon (favicon and Apple touch icon)
-- **YouTube channel @PachamamaValleyFarms:** the full badge as the profile picture
+- **YouTube channel @PachamamaValleyFarm:** the full badge as the profile picture, the badge on the channel banner (`yt-banner.jpg`, built by `make_banner.py`), and the simplified mark as the video watermark (`pvf-watermark-150.png`)
 
 ## Where the files live
 
-- **OneDrive:** `CoWork/SubjectData/Claude outputs/Pachamama Valley Farms/brand/`
+- **OneDrive:** `CoWork/SubjectData/Claude outputs/Pachamama Valley Farms/brand/` (folder name kept from before the rename)
 - **GitHub:** `btsubjectdata/pachamama-valley-farms`, folder `brand/`. That folder also has the generator script `make_logo.py` and the font, so the logo can be rebuilt or edited exactly. Run `python3 make_logo.py .` from the `brand/` folder to regenerate both SVGs.

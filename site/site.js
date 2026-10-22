@@ -26,7 +26,7 @@
     src += (src.indexOf("?") === -1 ? "?" : "&") + "autoplay=1&mute=1&playsinline=1&rel=0";
     var iframe = document.createElement("iframe");
     iframe.src = src;
-    iframe.title = "Pachamama Valley Farms bee yard, live";
+    iframe.title = "Pachamama Valley Farm bee yard, live";
     iframe.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
     iframe.setAttribute("allowfullscreen", "");
     placeholder.hidden = true;
@@ -39,7 +39,7 @@
     var v = document.createElement("video");
     v.muted = true; v.autoplay = true; v.playsInline = true; v.controls = true;
     v.setAttribute("muted", ""); v.setAttribute("playsinline", "");
-    v.title = "Pachamama Valley Farms bee yard, live";
+    v.title = "Pachamama Valley Farm bee yard, live";
     v.hidden = true;
     frame.appendChild(v);
     setPill("offline", "Connecting");
@@ -127,7 +127,7 @@
         note.dataset.state = "done";
         form.reset();
       }).catch(function () {
-        note.textContent = "Signups aren't wired up yet. Email info@pachamamavalleyfarms.com and we'll add you by hand.";
+        note.textContent = "Signups aren't wired up yet. Email info@pachamamavalleyfarm.com and we'll add you by hand.";
         note.dataset.state = "error";
       });
     });

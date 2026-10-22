@@ -1,4 +1,4 @@
-// Pachamama Valley Farms — site configuration
+// Pachamama Valley Farm — site configuration
 // Edit this file only. Nothing else needs to change when the stream moves.
 
 window.PVF_CONFIG = {

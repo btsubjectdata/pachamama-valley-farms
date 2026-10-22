@@ -126,7 +126,7 @@ defs = f'''<defs>
 parts.append(f'<g clip-path="url(#art)">' + ''.join(art) + ''.join(bee) + '</g>')
 
 # ---- text ----
-top, tspan = text_on_arc('PACHAMAMA VALLEY FARMS', 96, 452, 0, False, tracking=0.07)
+top, tspan = text_on_arc('PACHAMAMA VALLEY FARM', 98, 452, 0, False, tracking=0.08)
 bot, bspan = text_on_arc('LOCAL TEXAS HONEY', 82, 538, 180, True, tracking=0.16)
 parts.append(f'<g fill="{CREAM}">' + ''.join(top) + ''.join(bot) + '</g>')
 # stars in the gaps
