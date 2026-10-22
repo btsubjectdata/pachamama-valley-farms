@@ -307,5 +307,3 @@ figcaption { font-family: var(--display); font-size: 0.85rem; color: var(--muted
 .g-close { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 0.25rem); right: max(0.5rem, env(safe-area-inset-right, 0px)); font-size: 2.2rem !important; }
 @media (max-width: 560px) { .g-nav { position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 0.25rem); } .g-prev { left: 0.5rem; } .g-next { right: 0.5rem; } .g-box[open] { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .g-item img { transition: none; } }
-.visit .coming { border-left: 3px solid var(--honey); padding: 0.2rem 0 0.2rem 0.9rem; }
-.visit .coming strong { font-family: var(--display); color: var(--honey-2); }
