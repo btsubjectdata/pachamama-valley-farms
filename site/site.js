@@ -5,33 +5,81 @@
   var pill = document.getElementById("live-pill");
   var watch = document.getElementById("watch-on-yt");
 
-  // --- Live stream embed -------------------------------------------------
+  // --- Live stream ---------------------------------------------------------
+  // Order of preference: YouTube Live (when STREAM_ENABLED), else the direct HLS feed,
+  // else the "coming soon" card.
   var channel = (cfg.YT_CHANNEL_ID || "").trim();
   var video = (cfg.YT_VIDEO_ID || "").trim();
-  var configured = cfg.STREAM_ENABLED && (video || (channel && channel.indexOf("REPLACE") === -1));
+  var useYouTube = cfg.STREAM_ENABLED && (video || channel);
+  var hlsUrl = (cfg.HLS_URL || "").trim();
 
-  if (configured) {
+  function setPill(state, text) { pill.dataset.state = state; pill.lastChild.textContent = text; }
+  function showCard(text) {
+    placeholder.hidden = false;
+    placeholder.querySelector("p").textContent = text;
+  }
+
+  if (useYouTube) {
     var src = video
       ? "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(video)
       : "https://www.youtube-nocookie.com/embed/live_stream?channel=" + encodeURIComponent(channel);
     src += (src.indexOf("?") === -1 ? "?" : "&") + "autoplay=1&mute=1&playsinline=1&rel=0";
-
     var iframe = document.createElement("iframe");
     iframe.src = src;
     iframe.title = "Pachamama Valley Farms bee yard, live";
     iframe.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
     iframe.setAttribute("allowfullscreen", "");
-    iframe.loading = "lazy";
     placeholder.hidden = true;
     frame.appendChild(iframe);
-
     watch.href = video
       ? "https://www.youtube.com/watch?v=" + encodeURIComponent(video)
       : "https://www.youtube.com/channel/" + encodeURIComponent(channel) + "/live";
-    pill.dataset.state = "live";
+    setPill("live", "Live");
+  } else if (hlsUrl) {
+    var v = document.createElement("video");
+    v.muted = true; v.autoplay = true; v.playsInline = true; v.controls = true;
+    v.setAttribute("muted", ""); v.setAttribute("playsinline", "");
+    v.title = "Pachamama Valley Farms bee yard, live";
+    v.hidden = true;
+    frame.appendChild(v);
+    setPill("offline", "Connecting");
+
+    var retryTimer = null, hls = null;
+    function onPlaying() { placeholder.hidden = true; v.hidden = false; setPill("live", "Live"); }
+    function onDown() {
+      v.hidden = true;
+      showCard("The bee yard camera is taking a break. It reconnects on its own; check back in a few minutes.");
+      setPill("offline", "Offline");
+      clearTimeout(retryTimer); retryTimer = setTimeout(start, 30000);
+    }
+    v.addEventListener("playing", onPlaying);
+
+    function startHlsJs() {
+      if (hls) { hls.destroy(); }
+      hls = new window.Hls({ liveSyncDurationCount: 2, lowLatencyMode: false, manifestLoadingMaxRetry: 2 });
+      hls.on(window.Hls.Events.ERROR, function (_e, data) { if (data.fatal) { hls.destroy(); hls = null; onDown(); } });
+      hls.loadSource(hlsUrl);
+      hls.attachMedia(v);
+      hls.on(window.Hls.Events.MANIFEST_PARSED, function () { v.play().catch(function () {}); });
+    }
+    function start() {
+      if (v.canPlayType("application/vnd.apple.mpegurl")) {          // Safari, iOS
+        v.src = hlsUrl + "?t=" + Date.now();
+        v.onerror = onDown;
+        v.play().catch(function () {});
+      } else if (window.Hls) {
+        startHlsJs();
+      } else {
+        var sc = document.createElement("script");
+        sc.src = "https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js";
+        sc.onload = function () { window.Hls && window.Hls.isSupported() ? startHlsJs() : onDown(); };
+        sc.onerror = onDown;
+        document.head.appendChild(sc);
+      }
+    }
+    start();
   } else {
-    pill.dataset.state = "offline";
-    pill.lastChild.textContent = "Coming soon";
+    setPill("offline", "Coming soon");
   }
 
   // --- Local time in the caption ------------------------------------------
