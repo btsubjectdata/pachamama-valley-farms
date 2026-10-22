@@ -90,7 +90,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 }
 .top-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 0.7rem; flex-wrap: wrap; }
 .brand { display: inline-flex; align-items: center; gap: 0.6rem; font-family: var(--display); font-weight: 700; font-size: 1.05rem; text-decoration: none; }
-.mark { width: 28px; height: 28px; }
+
 .nav { display: flex; gap: 1.25rem; font-family: var(--display); font-size: 0.95rem; flex-wrap: wrap; }
 .nav a { text-decoration: none; padding-block: 0.25rem; border-bottom: 2px solid transparent; }
 .nav a:hover { border-bottom-color: var(--honey); }
@@ -307,3 +307,9 @@ figcaption { font-family: var(--display); font-size: 0.85rem; color: var(--muted
 .g-close { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 0.25rem); right: max(0.5rem, env(safe-area-inset-right, 0px)); font-size: 2.2rem !important; }
 @media (max-width: 560px) { .g-nav { position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 0.25rem); } .g-prev { left: 0.5rem; } .g-next { right: 0.5rem; } .g-box[open] { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .g-item img { transition: none; } }
+
+/* ---------- Logo ---------- */
+.mark { width: 36px; height: 36px; }
+.hero-badge { display: block; width: clamp(96px, 14vw, 150px); height: auto; margin-bottom: 1rem; filter: drop-shadow(0 4px 14px rgba(0,0,0,.35)); }
+.foot-brand { display: inline-flex; align-items: center; gap: 0.75rem; }
+.foot-brand img { width: 56px; height: 56px; }
