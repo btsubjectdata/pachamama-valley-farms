@@ -1,2 +1,8 @@
 /img/*
   Cache-Control: public, max-age=604800
+/*.js
+  Cache-Control: public, max-age=300
+/*.css
+  Cache-Control: public, max-age=300
+/
+  Cache-Control: no-cache
