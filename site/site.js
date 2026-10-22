@@ -133,3 +133,57 @@
     });
   }
 })();
+
+/* Gallery: filters + lightbox */
+(function () {
+  var grid = document.getElementById("g-grid");
+  var box = document.getElementById("g-box");
+  if (!grid || !box) return;
+  var items = Array.prototype.slice.call(grid.querySelectorAll(".g-item"));
+  var img = document.getElementById("g-img"), cap = document.getElementById("g-cap");
+  var cur = 0;
+
+  document.querySelectorAll(".g-filters button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var f = b.dataset.f;
+      document.querySelectorAll(".g-filters button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+      items.forEach(function (it) { it.hidden = !(f === "all" || it.dataset.cat === f); });
+    });
+  });
+
+  function visible() { return items.filter(function (it) { return !it.hidden; }); }
+  function show(i) {
+    var v = visible(); if (!v.length) return;
+    cur = (i + v.length) % v.length;
+    var it = v[cur], a = it.querySelector("a"), t = it.querySelector("img");
+    img.src = a.dataset.full; img.alt = t.alt; cap.textContent = it.querySelector("figcaption").textContent;
+  }
+  if (typeof box.showModal !== "function") return; // old browsers: links open the full image
+
+  items.forEach(function (it) {
+    it.querySelector("a").addEventListener("click", function (e) {
+      e.preventDefault();
+      show(visible().indexOf(it));
+      box.showModal();
+    });
+  });
+  box.addEventListener("click", function (e) {
+    var act = e.target.closest && e.target.closest("[data-act]");
+    if (act) {
+      var a = act.dataset.act;
+      if (a === "close") box.close(); else show(cur + (a === "next" ? 1 : -1));
+    } else if (e.target === box) box.close();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!box.open) return;
+    if (e.key === "ArrowRight") show(cur + 1);
+    if (e.key === "ArrowLeft") show(cur - 1);
+  });
+  var x0 = null;
+  box.addEventListener("touchstart", function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+  box.addEventListener("touchend", function (e) {
+    if (x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0; x0 = null;
+    if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1));
+  });
+})();
