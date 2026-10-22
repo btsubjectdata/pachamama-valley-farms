@@ -187,3 +187,19 @@
     if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1));
   });
 })();
+
+/* Hero parallax: photo moves at ~40% of scroll speed */
+(function () {
+  var hero = document.querySelector(".hero"), photo = document.querySelector(".hero-photo");
+  if (!hero || !photo) return;
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  var ticking = false;
+  function update() {
+    ticking = false;
+    var h = hero.offsetHeight, y = window.scrollY;
+    if (y > h) return;
+    photo.style.setProperty("--parallax", (y * 0.4).toFixed(1) + "px");
+  }
+  window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  update();
+})();
