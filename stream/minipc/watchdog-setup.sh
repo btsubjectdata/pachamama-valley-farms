@@ -1,11 +1,12 @@
 #!/bin/bash
 # Installs the YouTube watchdog on the mini PC.  Usage:  sudo bash watchdog-setup.sh
-# Needs /opt/pvf-stream/youtube-client.json (Google OAuth client: client_id + client_secret).
+# Usage:  sudo bash watchdog-setup.sh ~/youtube-client.json   (the Google OAuth client file)
 set -euo pipefail
 REPO_RAW="${REPO_RAW:-https://raw.githubusercontent.com/btsubjectdata/pachamama-valley-farms/main/stream/minipc}"
 D=/opt/pvf-stream
 [ "$(id -u)" = 0 ] || { echo "Run with sudo."; exit 1; }
-[ -f "$D/youtube-client.json" ] || { echo "Missing $D/youtube-client.json"; exit 1; }
+if [ -n "${1:-}" ] && [ -f "$1" ]; then install -m 600 "$1" "$D/youtube-client.json"; rm -f "$1"; fi
+[ -f "$D/youtube-client.json" ] || { echo "Usage: sudo bash watchdog-setup.sh ~/youtube-client.json"; exit 1; }
 chmod 600 "$D/youtube-client.json"
 curl -fsSL "$REPO_RAW/watchdog.py" -o "$D/watchdog.py"
 curl -fsSL "$REPO_RAW/serve.py" -o "$D/serve.py"

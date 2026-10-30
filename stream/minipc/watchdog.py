@@ -43,6 +43,12 @@ def save(p, obj, mode=0o600):
     with open(tmp, "w") as f: json.dump(obj, f, indent=1)
     os.chmod(tmp, mode); os.replace(tmp, p)
 
+def client():
+    c = load(CLIENT)
+    if c and len(c) == 1 and isinstance(next(iter(c.values())), dict):  # Google's download: {"installed": {...}}
+        c = next(iter(c.values()))
+    return c
+
 def post_form(url, data):
     req = urllib.request.Request(url, urllib.parse.urlencode(data).encode())
     try:
@@ -51,7 +57,7 @@ def post_form(url, data):
 
 # ---------- OAuth (device flow; works on a headless box) ----------
 def login():
-    c = load(CLIENT)
+    c = client()
     if not c: sys.exit(f"Missing {CLIENT}")
     r = post_form("https://oauth2.googleapis.com/device/code", {"client_id": c["client_id"], "scope": SCOPE})
     if "device_code" not in r: sys.exit(f"Google refused: {r}")
@@ -69,7 +75,7 @@ def login():
         if t.get("error") not in ("authorization_pending", "slow_down"): sys.exit(f"Sign-in failed: {t}")
 
 def access_token():
-    t, c = load(TOKEN), load(CLIENT)
+    t, c = load(TOKEN), client()
     if not t: raise RuntimeError("not signed in (run: sudo pvf-watchdog --login)")
     if time.time() < t.get("expires_at", 0): return t["access_token"]
     r = post_form("https://oauth2.googleapis.com/token", {
