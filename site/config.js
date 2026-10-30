@@ -20,4 +20,8 @@ window.PVF_CONFIG = {
   // Direct live feed from the farm (HLS via Cloudflare Tunnel on the Mac mini).
   // Used whenever it's set; the YouTube embed takes over when STREAM_ENABLED is true.
   HLS_URL: "https://cam.pachamamavalleyfarms.com/bees.m3u8",
+
+  // Written every 2 minutes by the YouTube watchdog on the mini PC. When it says YouTube is live,
+  // the page shows the YouTube player (4K with sound); otherwise it stays on the farm feed above.
+  STATUS_URL: "https://cam.pachamamavalleyfarms.com/status.json",
 };

@@ -78,6 +78,38 @@
       }
     }
     start();
+
+    // Watchdog switch: when the mini PC reports YouTube is live, show YouTube (4K with sound);
+    // otherwise keep the farm's own feed. Re-checked every minute.
+    var statusUrl = (cfg.STATUS_URL || "").trim(), ytFrame = null, ytId = null;
+    function useYouTube(id) {
+      if (ytFrame && ytId === id) return;
+      if (ytFrame) ytFrame.remove();
+      ytId = id;
+      ytFrame = document.createElement("iframe");
+      ytFrame.src = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(id) + "?autoplay=1&mute=1&playsinline=1&rel=0";
+      ytFrame.title = "Pachamama Valley Farm bee yard, live";
+      ytFrame.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+      ytFrame.setAttribute("allowfullscreen", "");
+      frame.appendChild(ytFrame);
+      v.hidden = true; v.pause(); placeholder.hidden = true;
+      if (hls) { hls.destroy(); hls = null; }
+      clearTimeout(retryTimer);
+      watch.href = "https://www.youtube.com/watch?v=" + encodeURIComponent(id);
+      setPill("live", "Live");
+    }
+    function useFarmFeed() {
+      if (!ytFrame) return;
+      ytFrame.remove(); ytFrame = null; ytId = null;
+      start();
+    }
+    function poll() {
+      fetch(statusUrl + "?t=" + Date.now(), { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (st) { if (st && st.youtube_live && st.video_id) useYouTube(st.video_id); else useFarmFeed(); })
+        .catch(function () {});
+    }
+    if (statusUrl) { poll(); setInterval(poll, 60000); }
   } else {
     setPill("offline", "Coming soon");
   }
