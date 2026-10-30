@@ -175,9 +175,15 @@ def check(st):
     vid, life = b["id"], b["status"]["lifeCycleStatus"]
     ensure_embeddable(vid, st)
 
-    if life in ("ready", "testing") and stream_active:
+    if life in ("created", "ready", "testing") and stream_active:
         st.setdefault("ready_since", now)
-        if now - st["ready_since"] > STUCK_READY_S:
+        waited = now - st["ready_since"]
+        if waited > STUCK_READY_S and not st.get("kicked"):
+            # Auto-start fires when video *starts* arriving at a ready broadcast; if the relay was already
+            # sending when the broadcast was made, reconnecting it gives YouTube that start.
+            restart_relay(f"broadcast {vid} stuck in '{life}' for {int(waited)}s, reconnecting to trigger auto-start")
+            st["kicked"] = vid
+        elif waited > 2 * STUCK_READY_S:
             try:
                 yt("POST", "liveBroadcasts/transition", {"part": "status", "id": vid, "broadcastStatus": "live"})
                 log("pushed broadcast", vid, "from", life, "to live")
@@ -186,9 +192,9 @@ def check(st):
                 try: yt("DELETE", "liveBroadcasts", {"id": vid})
                 except Exception: pass
                 b = create_broadcast(s["id"]); vid, life = b["id"], b["status"]["lifeCycleStatus"]
-            st.pop("ready_since", None)
+            st.pop("ready_since", None); st.pop("kicked", None)
     else:
-        st.pop("ready_since", None)
+        st.pop("ready_since", None); st.pop("kicked", None)
 
     if not stream_active and now - st["last_video"] > NO_VIDEO_RESTART_S:
         restart_relay(f"YouTube has had no video for {int(now - st['last_video'])}s")
