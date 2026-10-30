@@ -188,10 +188,15 @@ def check(st):
                 yt("POST", "liveBroadcasts/transition", {"part": "status", "id": vid, "broadcastStatus": "live"})
                 log("pushed broadcast", vid, "from", life, "to live")
             except Exception as e:
-                log("transition failed, making a fresh broadcast:", e)
-                try: yt("DELETE", "liveBroadcasts", {"id": vid})
-                except Exception: pass
-                b = create_broadcast(s["id"]); vid, life = b["id"], b["status"]["lifeCycleStatus"]
+                log("transition failed:", str(e).splitlines()[0][:160])
+                # Only replace a stuck broadcast at most once an hour, so YouTube isn't flooded with new ones.
+                if now - st.get("last_recreate", 0) > 3600:
+                    st["last_recreate"] = now
+                    try: yt("DELETE", "liveBroadcasts", {"id": vid})
+                    except Exception: pass
+                    b = create_broadcast(s["id"]); vid, life = b["id"], b["status"]["lifeCycleStatus"]
+                else:
+                    log("keeping", vid, "- already replaced one in the last hour")
             st.pop("ready_since", None); st.pop("kicked", None)
     else:
         st.pop("ready_since", None); st.pop("kicked", None)
