@@ -15,7 +15,7 @@ window.PVF_CONFIG = {
 
   // Set to true once the restream is running, so the page embeds the live player
   // instead of the "coming soon" card.
-  STREAM_ENABLED: true,
+  STREAM_ENABLED: false,
 
   // Direct live feed from the farm (HLS via Cloudflare Tunnel on the Mac mini).
   // Used whenever it's set; the YouTube embed takes over when STREAM_ENABLED is true.
