@@ -61,7 +61,6 @@ fi
   echo "# Linux overrides for the mini PC (stream.env came from the Mac)."
   echo "LINUX_ENCODER=\"$ENC\""
   echo "VAAPI_LOW_POWER=\"${LP:-0}\""
-  echo "HLS_CAMERA_URL=\"rtsp://192.168.0.1:7447/EUlrQv8OgAzHpK1h\""
   if [ "$ENC" = software ]; then echo 'SCALE="1920:1080"'; echo 'VIDEO_BITRATE="6000k"'; fi
 } > "$D/linux.env"
 chown -R pvf:pvf "$D"; chmod 700 "$D"
