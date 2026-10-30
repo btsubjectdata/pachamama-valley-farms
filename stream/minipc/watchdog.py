@@ -140,13 +140,19 @@ def create_broadcast(stream_id):
         "snippet": {"title": TITLE, "description": DESC, "scheduledStartTime": now},
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False},
         "contentDetails": {"enableAutoStart": True, "enableAutoStop": False, "enableDvr": True,
-                           "enableEmbed": True, "latencyPreference": "normal", "recordFromStart": True,
+                           "latencyPreference": "normal", "recordFromStart": True,
                            "monitorStream": {"enableMonitorStream": False}}})
     yt("POST", "liveBroadcasts/bind", {"part": "id,contentDetails", "id": b["id"], "streamId": stream_id})
     try:  # category People & Blogs, same as before
         yt("PUT", "videos", {"part": "snippet"}, {"id": b["id"], "snippet": {"title": TITLE, "description": DESC, "categoryId": "22"}})
     except Exception as e: log("category update skipped:", e)
-    log("created and bound new broadcast", b["id"]); return b
+    log("created and bound new broadcast", b["id"])
+    try:
+        v = yt("GET", "videos", {"part": "status", "id": b["id"]})["items"][0]["status"]
+        v["embeddable"] = True; yt("PUT", "videos", {"part": "status"}, {"id": b["id"], "status": v})
+        log("embedding on for", b["id"])
+    except Exception as e: log("embedding update failed (will retry):", e)
+    return b
 
 def ensure_embeddable(vid, st):
     if st.get("embed_ok") == vid: return
