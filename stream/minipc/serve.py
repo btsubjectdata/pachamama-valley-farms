@@ -4,7 +4,7 @@ Cloudflare Tunnel reaches it. Serves bees.m3u8 and bees_NNNNNN.ts, nothing else.
 import os, re
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 ROOT = "/opt/pvf-stream/hls"
-OK = re.compile(r"^/(bees\.m3u8|bees_\d{6}\.ts|status\.json)$")
+OK = re.compile(r"^/(bees(_(1080|720))?\.m3u8|bees_((1080|720)_)?\d{6}\.ts|status\.json)$")
 class H(SimpleHTTPRequestHandler):
     def __init__(self, *a, **k): super().__init__(*a, directory=ROOT, **k)
     def do_GET(self):
