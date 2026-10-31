@@ -155,12 +155,18 @@ def create_broadcast(stream_id):
     return b
 
 def ensure_embeddable(vid, st):
-    if st.get("embed_ok") == vid: return
+    """Checked every cycle (1 quota unit): YouTube can flip embedding off when a broadcast goes live.
+    Returns True only when the video is confirmed embeddable."""
     v = yt("GET", "videos", {"part": "status", "id": vid}).get("items", [])
-    if v and not v[0]["status"].get("embeddable", True):
-        s = v[0]["status"]; s["embeddable"] = True
+    if not v: return False
+    s = v[0]["status"]
+    if s.get("embeddable", False): return True
+    s["embeddable"] = True
+    try:
         yt("PUT", "videos", {"part": "status"}, {"id": vid, "status": s}); log("turned embedding back on for", vid)
-    st["embed_ok"] = vid
+    except Exception as e:
+        log("embedding update failed:", str(e).splitlines()[0][:160])
+    return False
 
 def check(st):
     now = time.time()
@@ -173,7 +179,7 @@ def check(st):
     b = find_broadcast(s["id"])
     if not b: b = create_broadcast(s["id"])
     vid, life = b["id"], b["status"]["lifeCycleStatus"]
-    ensure_embeddable(vid, st)
+    embeddable = ensure_embeddable(vid, st)
 
     if life in ("created", "ready", "testing") and stream_active:
         st.setdefault("ready_since", now)
@@ -205,7 +211,8 @@ def check(st):
         restart_relay(f"YouTube has had no video for {int(now - st['last_video'])}s")
         st["last_video"] = now  # give it another window before the next restart
 
-    live = life == "live" and stream_active
+    # Only point the website at YouTube when it is live AND embeddable; otherwise it keeps the farm feed.
+    live = life == "live" and stream_active and embeddable
     save(STATUS, {"youtube_live": live, "video_id": vid if live else None,
                   "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}, 0o644)
     if st.get("last_line") != (life, stream_active, health):
