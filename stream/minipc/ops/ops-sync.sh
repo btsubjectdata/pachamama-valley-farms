@@ -14,7 +14,11 @@ redact() { sed -E \
   -e 's/ya29\.[A-Za-z0-9._-]+/[access-token]/g' \
   -e 's#1//[A-Za-z0-9._-]{20,}#[refresh-token]#g' \
   -e 's#(rtsps?://[^/ ]+/)[A-Za-z0-9]{12,}#\1[camera-token]#g' \
-  -e 's/("(client_secret|refresh_token|access_token|TunnelSecret)"[[:space:]]*:[[:space:]]*")[^"]*/\1[redacted]/g'; }
+  -e 's/("(client_secret|refresh_token|access_token|TunnelSecret)"[[:space:]]*:[[:space:]]*")[^"]*/\1[redacted]/g' \
+  -e 's/tskey-[A-Za-z0-9_-]+/[tailscale-key]/g' \
+  -e 's/[A-Za-z0-9-]+\.[A-Za-z0-9-]+\.ts\.net/[tailnet-name]/g' \
+  -e 's/\b100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]{1,3}\.[0-9]{1,3}\b/[tailscale-ip]/g' \
+  -e 's/\b192\.168\.12\.[0-9]{1,3}\b/[home-lan-ip]/g'; }
 
 # ---- run new tasks ----
 mkdir -p tasks results status
