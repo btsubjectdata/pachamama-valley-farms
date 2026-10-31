@@ -140,7 +140,7 @@ def create_broadcast(stream_id):
         "snippet": {"title": TITLE, "description": DESC, "scheduledStartTime": now},
         "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False},
         "contentDetails": {"enableAutoStart": True, "enableAutoStop": False, "enableDvr": True,
-                           "latencyPreference": "normal", "recordFromStart": True,
+                           "latencyPreference": "normal", "recordFromStart": False,  # no replay saved unless Bradley asks
                            "monitorStream": {"enableMonitorStream": False}}})
     yt("POST", "liveBroadcasts/bind", {"part": "id,contentDetails", "id": b["id"], "streamId": stream_id})
     try:  # category People & Blogs, same as before
