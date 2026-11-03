@@ -5,6 +5,13 @@
 set -u
 R=/opt/pvf-ops; D=/opt/pvf-stream
 export GIT_SSH_COMMAND="ssh -i /root/.ssh/pvf_ops -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+OPS_URL="git@github.com:btsubjectdata/pvf-ops.git"
+# Self-repair: a power cut mid-write can corrupt the local clone. If git can't read it, re-clone.
+if ! git -C "$R" rev-parse --verify -q HEAD >/dev/null 2>&1 || ! git -C "$R" fsck --no-dangling >/dev/null 2>&1; then
+  logger -t pvf-ops-sync "local ops repo unreadable; re-cloning"
+  rm -rf "$R" && git clone -q "$OPS_URL" "$R" || { logger -t pvf-ops-sync "re-clone failed"; exit 1; }
+  git -C "$R" config user.name beehive1; git -C "$R" config user.email beehive1@pachamamavalleyfarm.com
+fi
 cd "$R" || exit 1
 # Some networks block SSH on port 22; GitHub also answers on ssh.github.com:443.
 if timeout 8 bash -c 'exec 3<>/dev/tcp/github.com/22' 2>/dev/null; then
