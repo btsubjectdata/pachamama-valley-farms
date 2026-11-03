@@ -6,6 +6,12 @@ set -u
 R=/opt/pvf-ops; D=/opt/pvf-stream
 export GIT_SSH_COMMAND="ssh -i /root/.ssh/pvf_ops -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 cd "$R" || exit 1
+# Some networks block SSH on port 22; GitHub also answers on ssh.github.com:443.
+if timeout 8 bash -c 'exec 3<>/dev/tcp/github.com/22' 2>/dev/null; then
+  git remote set-url origin git@github.com:btsubjectdata/pvf-ops.git
+else
+  git remote set-url origin ssh://git@ssh.github.com:443/btsubjectdata/pvf-ops.git
+fi
 git pull -q --rebase origin main 2>/dev/null || { git rebase --abort 2>/dev/null; git reset -q --hard origin/main; }
 
 redact() { sed -E \
