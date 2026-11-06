@@ -99,8 +99,13 @@ def yt(method, path, params=None, body=None):
         with urllib.request.urlopen(req, timeout=30) as r:
             raw = r.read(); return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as e:
-        msg = e.read().decode(errors="replace")[:400]
-        raise RuntimeError(f"{method} {path} -> {e.code}: {msg}")
+        raw = e.read().decode(errors="replace")
+        try:  # one line: reason + message, so the log is readable
+            err = json.loads(raw)["error"]; errs = err.get("errors") or [{}]
+            msg = f"{errs[0].get('reason', err.get('status', ''))}: {err.get('message', '')}"
+        except Exception:
+            msg = " ".join(raw.split())
+        raise RuntimeError(f"{method} {path} -> {e.code}: {msg[:400]}")
 
 # ---------- env helpers ----------
 def env_get(path, key):
