@@ -1,8 +1,11 @@
 #!/bin/bash
-# Bee cam -> YouTube Live. Run by systemd (pvf-restream.service); restarts on exit.
+# Camera -> YouTube Live. Usage: restream.sh [camera]   (default: bees)
+# bees reads /opt/pvf-stream/stream.env; any other camera reads /opt/pvf-stream/cams/<camera>.env
+# (which can override audio/size settings; stream.env supplies the defaults). Run by systemd; restarts on exit.
 set -u
-D=/opt/pvf-stream
+D=/opt/pvf-stream; CAM="${1:-bees}"
 source "$D/stream.env"; [ -f "$D/linux.env" ] && source "$D/linux.env"
+[ "$CAM" = bees ] || source "$D/cams/$CAM.env"
 : "${RTSPS_URL:?}" "${YT_STREAM_KEY:?}"
 FPS="${FPS:-30}"; SCALE="${SCALE:-1920:1080}"; VB="${VIDEO_BITRATE:-6000k}"
 W="${SCALE%:*}"; H="${SCALE#*:}"
@@ -24,7 +27,7 @@ else
          -b:v "$VB" -maxrate "$VB" -bufsize "$((${VB%k} * 2))k" -g "$((FPS * 2))" -keyint_min "$((FPS * 2))")
 fi
 
-echo "$(date '+%F %T') starting restream (encoder=${LINUX_ENCODER:-vaapi} ${W}x${H}@${FPS} ${VB} audio=${AUDIO:-silent})"
+echo "$(date '+%F %T') starting restream for $CAM (encoder=${LINUX_ENCODER:-vaapi} ${W}x${H}@${FPS} ${VB} audio=${AUDIO:-silent})"
 exec ffmpeg -hide_banner -loglevel error -nostdin "${HW[@]}" \
   -rtsp_transport tcp -timeout 10000000 -use_wallclock_as_timestamps 1 -fflags +genpts+discardcorrupt \
   -i "$RTSPS_URL" \

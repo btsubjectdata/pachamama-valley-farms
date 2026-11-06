@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Read-only server (also serves status.json from the watchdog) for the bee yard HLS files. Bound to localhost; only the
-Cloudflare Tunnel reaches it. Serves bees.m3u8 and bees_NNNNNN.ts, nothing else."""
+"""Read-only server (also serves status.json from the watchdog) for the bee yard and hog trap HLS files. Bound to localhost; only the
+Cloudflare Tunnel reaches it. Serves the bees/hog playlists and segments, nothing else."""
 import os, re
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 ROOT = "/opt/pvf-stream/hls"
-OK = re.compile(r"^/(bees(_(1080|720))?\.m3u8|bees_((1080|720)_)?\d{6}\.ts|status\.json)$")
+OK = re.compile(r"^/((bees|hog)(_(1080|720))?\.m3u8|(bees|hog)_((1080|720)_)?\d{6}\.ts|status\.json)$")
 class H(SimpleHTTPRequestHandler):
     def __init__(self, *a, **k): super().__init__(*a, directory=ROOT, **k)
     def do_GET(self):
