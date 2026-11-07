@@ -1,59 +1,38 @@
 (function () {
   var cfg = window.PVF_CONFIG || {};
-  var frame = document.getElementById("stream-frame");
-  var placeholder = document.getElementById("stream-placeholder");
-  var pill = document.getElementById("live-pill");
-  var watch = document.getElementById("watch-on-yt");
 
-  // --- Live stream ---------------------------------------------------------
-  // Order of preference: YouTube Live (when STREAM_ENABLED), else the direct HLS feed,
-  // else the "coming soon" card.
-  var channel = (cfg.YT_CHANNEL_ID || "").trim();
-  var video = (cfg.YT_VIDEO_ID || "").trim();
-  var useYouTube = cfg.STREAM_ENABLED && (video || channel);
-  var hlsUrl = (cfg.HLS_URL || "").trim();
+  // --- Live players --------------------------------------------------------
+  // One player per camera. Each shows the farm's own HLS feed, and switches to the YouTube
+  // player (higher quality, with sound) whenever the mini PC's watchdog reports that camera
+  // live on YouTube (status.json, re-checked every minute). If YouTube drops, it falls back.
+  function mountPlayer(o) {
+    var frame = document.getElementById(o.frame), placeholder = document.getElementById(o.placeholder);
+    var pill = document.getElementById(o.pill), watch = document.getElementById(o.watch);
+    if (!frame || !placeholder || !pill) return null;
+    var hlsUrl = (o.hlsUrl || "").trim();
 
-  function setPill(state, text) { pill.dataset.state = state; pill.lastChild.textContent = text; }
-  function showCard(text) {
-    placeholder.hidden = false;
-    placeholder.querySelector("p").textContent = text;
-  }
+    function setPill(state, text) { pill.dataset.state = state; pill.lastChild.textContent = text; }
+    function showCard(text) { placeholder.hidden = false; placeholder.querySelector("p").textContent = text; }
 
-  if (useYouTube) {
-    var src = video
-      ? "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(video)
-      : "https://www.youtube-nocookie.com/embed/live_stream?channel=" + encodeURIComponent(channel);
-    src += (src.indexOf("?") === -1 ? "?" : "&") + "autoplay=1&mute=1&playsinline=1&rel=0";
-    var iframe = document.createElement("iframe");
-    iframe.src = src;
-    iframe.title = "Pachamama Valley Farm bee yard, live";
-    iframe.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
-    iframe.setAttribute("allowfullscreen", "");
-    placeholder.hidden = true;
-    frame.appendChild(iframe);
-    watch.href = video
-      ? "https://www.youtube.com/watch?v=" + encodeURIComponent(video)
-      : "https://www.youtube.com/channel/" + encodeURIComponent(channel) + "/live";
-    setPill("live", "Live");
-  } else if (hlsUrl) {
+    if (!hlsUrl) { setPill("offline", "Coming soon"); return null; }
+
     var v = document.createElement("video");
     v.muted = true; v.autoplay = true; v.playsInline = true; v.controls = true;
     v.setAttribute("muted", ""); v.setAttribute("playsinline", "");
-    v.title = "Pachamama Valley Farm bee yard, live";
+    v.title = o.title;
     v.hidden = true;
     frame.appendChild(v);
     setPill("offline", "Connecting");
 
-    var retryTimer = null, hls = null;
-    function onPlaying() { placeholder.hidden = true; v.hidden = false; setPill("live", "Live"); }
+    var retryTimer = null, hls = null, ytFrame = null, ytId = null;
+    v.addEventListener("playing", function () { placeholder.hidden = true; v.hidden = false; setPill("live", "Live"); });
     function onDown() {
+      if (ytFrame) return;                      // YouTube is showing; the farm feed can stay quiet
       v.hidden = true;
-      showCard("The bee yard camera is taking a break. It reconnects on its own; check back in a few minutes.");
+      showCard(o.offlineText);
       setPill("offline", "Offline");
       clearTimeout(retryTimer); retryTimer = setTimeout(start, 30000);
     }
-    v.addEventListener("playing", onPlaying);
-
     function startHlsJs() {
       if (hls) { hls.destroy(); }
       hls = new window.Hls({ liveSyncDurationCount: 2, lowLatencyMode: false, manifestLoadingMaxRetry: 2 });
@@ -63,6 +42,7 @@
       hls.on(window.Hls.Events.MANIFEST_PARSED, function () { v.play().catch(function () {}); });
     }
     function start() {
+      if (ytFrame) return;
       if (v.canPlayType("application/vnd.apple.mpegurl")) {          // Safari, iOS
         v.src = hlsUrl + "?t=" + Date.now();
         v.onerror = onDown;
@@ -70,60 +50,87 @@
       } else if (window.Hls) {
         startHlsJs();
       } else {
-        var sc = document.createElement("script");
-        sc.src = "https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js";
-        sc.onload = function () { window.Hls && window.Hls.isSupported() ? startHlsJs() : onDown(); };
-        sc.onerror = onDown;
-        document.head.appendChild(sc);
+        loadHlsJs(function (ok) { ok ? startHlsJs() : onDown(); });
       }
     }
-    start();
-
-    // Watchdog switch: when the mini PC reports YouTube is live, show YouTube (4K with sound);
-    // otherwise keep the farm's own feed. Re-checked every minute.
-    var statusUrl = (cfg.STATUS_URL || "").trim(), ytFrame = null, ytId = null;
     function useYouTube(id) {
       if (ytFrame && ytId === id) return;
       if (ytFrame) ytFrame.remove();
       ytId = id;
       ytFrame = document.createElement("iframe");
       ytFrame.src = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(id) + "?autoplay=1&mute=1&playsinline=1&rel=0";
-      ytFrame.title = "Pachamama Valley Farm bee yard, live";
+      ytFrame.title = o.title;
       ytFrame.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
       ytFrame.setAttribute("allowfullscreen", "");
       frame.appendChild(ytFrame);
       v.hidden = true; v.pause(); placeholder.hidden = true;
       if (hls) { hls.destroy(); hls = null; }
       clearTimeout(retryTimer);
-      watch.href = "https://www.youtube.com/watch?v=" + encodeURIComponent(id);
+      if (watch) watch.href = "https://www.youtube.com/watch?v=" + encodeURIComponent(id);
       setPill("live", "Live");
     }
     function useFarmFeed() {
       if (!ytFrame) return;
       ytFrame.remove(); ytFrame = null; ytId = null;
+      if (watch && o.watchDefault) watch.href = o.watchDefault;
       start();
     }
-    function poll() {
-      fetch(statusUrl + "?t=" + Date.now(), { cache: "no-store" })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (st) { if (st && st.youtube_live && st.video_id) useYouTube(st.video_id); else useFarmFeed(); })
-        .catch(function () {});
-    }
-    if (statusUrl) { poll(); setInterval(poll, 60000); }
-  } else {
-    setPill("offline", "Coming soon");
+    start();
+    return { update: function (st) { if (st && st.youtube_live && st.video_id) useYouTube(st.video_id); else useFarmFeed(); } };
   }
 
+  var hlsLoading = null;
+  function loadHlsJs(cb) {
+    if (window.Hls) return cb(window.Hls.isSupported());
+    if (!hlsLoading) {
+      hlsLoading = [];
+      var sc = document.createElement("script");
+      sc.src = "https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js";
+      sc.onload = function () { var ok = !!(window.Hls && window.Hls.isSupported()); hlsLoading.forEach(function (f) { f(ok); }); hlsLoading = null; };
+      sc.onerror = function () { hlsLoading.forEach(function (f) { f(false); }); hlsLoading = null; };
+      document.head.appendChild(sc);
+    }
+    hlsLoading.push(cb);
+  }
+
+  var players = {
+    bees: mountPlayer({
+      frame: "stream-frame", placeholder: "stream-placeholder", pill: "live-pill", watch: "watch-on-yt",
+      hlsUrl: cfg.HLS_URL, title: "Pachamama Valley Farm bee yard, live",
+      watchDefault: "https://www.youtube.com/@PachamamaValleyFarm/live",
+      offlineText: "The bee yard camera is taking a break. It reconnects on its own; check back in a few minutes."
+    }),
+    hog: mountPlayer({
+      frame: "hog-frame", placeholder: "hog-placeholder", pill: "hog-pill", watch: "hog-watch-on-yt",
+      hlsUrl: cfg.HOG_HLS_URL, title: "Pachamama Valley Farm hog trap, live",
+      watchDefault: "https://www.youtube.com/@PachamamaValleyFarm/streams",
+      offlineText: "The hog trap camera is taking a break. It reconnects on its own; check back in a few minutes."
+    })
+  };
+
+  var statusUrl = (cfg.STATUS_URL || "").trim();
+  function poll() {
+    fetch(statusUrl + "?t=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (st) {
+        var cams = (st && st.cams) || {};
+        if (players.bees) players.bees.update(cams.bees || st);     // older status files had only the bee cam at top level
+        if (players.hog) players.hog.update(cams.hog);
+      })
+      .catch(function () {});
+  }
+  if (statusUrl) { poll(); setInterval(poll, 60000); }
+
   // --- Local time in the caption ------------------------------------------
-  var timeEl = document.getElementById("local-time");
+  var timeEls = Array.prototype.slice.call(document.querySelectorAll(".local-time"));
   function tick() {
+    var now = new Date(), text = "";
     try {
-      var now = new Date();
-      timeEl.textContent = now.toLocaleTimeString("en-US", {
+      text = now.toLocaleTimeString("en-US", {
         hour: "numeric", minute: "2-digit", timeZone: cfg.TIMEZONE || "America/Chicago", timeZoneName: "short"
       }) + " at the farm";
-      timeEl.setAttribute("datetime", now.toISOString());
-    } catch (e) { timeEl.textContent = ""; }
+    } catch (e) {}
+    timeEls.forEach(function (el) { el.textContent = text; el.setAttribute("datetime", now.toISOString()); });
   }
   tick();
   setInterval(tick, 30000);

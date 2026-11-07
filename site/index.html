@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Pachamama Valley Farm</title>
-<meta name="description" content="A 50-acre working farm in Winnsboro, East Texas. Watch the bee yard live, see the land from the air, and follow the hives through the season.">
+<meta name="description" content="A 50-acre working farm in Winnsboro, East Texas. Watch the bee yard and the hog trap live, see the land from the air, and follow the hives through the season.">
 <meta name="theme-color" content="#1f3b2d">
 <meta property="og:title" content="Pachamama Valley Farm">
 <meta property="og:description" content="Live from the bee yard in Winnsboro, Texas.">
@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
 <link rel="preload" as="image" href="img/aerial.webp">
-<link rel="stylesheet" href="style.css?v=202610301510">
+<link rel="stylesheet" href="style.css?v=202611062000">
 </head>
 <body>
 
@@ -32,6 +32,7 @@
       <a href="#live">Live</a>
       <a href="#bees">The bees</a>
       <a href="#land">The land</a>
+      <a href="#hogcam">Hog cam</a>
       <a href="#gallery">Gallery</a>
       <a href="#honey">Honey</a>
       <a href="#visit">Contact</a>
@@ -66,7 +67,7 @@
         </div>
         <figcaption class="stream-cap">
           <span class="live-pill" id="live-pill"><span class="dot" aria-hidden="true"></span>Live</span>
-          <span class="cap-text">Bee yard camera · <time id="local-time">local time</time></span>
+          <span class="cap-text">Bee yard camera · <time class="local-time">local time</time></span>
           <a class="cap-link" id="watch-on-yt" href="https://www.youtube.com/@PachamamaValleyFarm/live" target="_blank" rel="noopener">Watch in 4K with sound on YouTube</a>
         </figcaption>
       </figure>
@@ -141,6 +142,7 @@
         <article>
           <h3>Hogs</h3>
           <p>Feral hogs root up pasture faster than it grows back. We run corral traps watched by cellular cameras, so the gate drops when the whole sounder is inside and not before. The pasture is recovering.</p>
+          <p><a class="cap-link" href="#hogcam">Watch the hog trap live &darr;</a></p>
         </article>
         <article>
           <h3>Water</h3>
@@ -159,6 +161,28 @@
   </section>
 
   <!-- Gallery -->
+  <!-- Hog trap camera -->
+  <section class="band hogcam" id="hogcam">
+    <div class="wrap">
+      <div class="land-head">
+        <h2>The hog trap, live</h2>
+        <p class="lede">A camera on the corral trap at the back of the pasture. Hogs usually come in after dark, so the best viewing is late evening through early morning; by day it is mostly birds, deer and the odd armadillo. The feed switches to YouTube when the stream is up and falls back to the farm's own feed when it isn't.</p>
+      </div>
+      <figure class="stream">
+        <div class="stream-frame" id="hog-frame">
+          <div class="stream-placeholder" id="hog-placeholder">
+            <p>The hog trap camera is coming online soon. Check back shortly.</p>
+          </div>
+        </div>
+        <figcaption class="stream-cap">
+          <span class="live-pill" id="hog-pill"><span class="dot" aria-hidden="true"></span>Live</span>
+          <span class="cap-text">Hog trap camera · <time class="local-time">local time</time></span>
+          <a class="cap-link" id="hog-watch-on-yt" href="https://www.youtube.com/@PachamamaValleyFarm/streams" target="_blank" rel="noopener">Watch in HD with sound on YouTube</a>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
   <section class="band gallery" id="gallery">
     <div class="wrap">
       <div class="g-head">
@@ -266,7 +290,7 @@
 </footer>
 
 
-<script src="config.js?v=202610301510"></script>
-<script src="site.js?v=202610301510"></script>
+<script src="config.js?v=202611062000"></script>
+<script src="site.js?v=202611062000"></script>
 </body>
 </html>
