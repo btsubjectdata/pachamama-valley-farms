@@ -215,7 +215,10 @@ def classify(jpeg, model=None, api_key=None):
         log(f"claude api error: {e}"); return None
     text = "".join(p.get("text", "") for p in res.get("content", []) if p.get("type") == "text")
     m = re.search(r"\{.*\}", text, re.S)
-    if not m: log(f"claude gave no json: {text[:120]!r}"); return None
+    if not m:
+        log(f"claude gave no json: {text[:120]!r} stop={res.get('stop_reason')} blocks={[p.get('type') for p in res.get('content', [])]} "
+            f"usage={res.get('usage')} err={res.get('error')}")
+        return None
     try: v = json.loads(m.group(0))
     except Exception: log(f"claude json unreadable: {text[:120]!r}"); return None
     return {"hog": bool(v.get("hog")), "confidence": float(v.get("confidence", 0) or 0),
