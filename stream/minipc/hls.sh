@@ -10,6 +10,8 @@ SRC="${HLS_HIGH_URL:-$RTSPS_URL}"
 mkdir -p "$OUT"; rm -f "$OUT/${CAM}"*.ts "$OUT/${CAM}"*.m3u8
 
 AF="aresample=async=1000:first_pts=0,highpass=f=${AUDIO_HIGHPASS:-200}:poles=2,highpass=f=${AUDIO_HIGHPASS:-200}:poles=2,afftdn=nr=${AUDIO_DENOISE:-10}:nf=-50:tn=1,lowpass=f=7800,volume=${AUDIO_GAIN:-1.0},alimiter=limit=0.9:level=disabled"
+# AUDIO_FILTER="off" in stream.env = out-of-the-box camera sound (no wind filter, denoise, EQ or gain); only timing resample.
+[ "${AUDIO_FILTER:-on}" = "off" ] && AF="aresample=async=1000:first_pts=0"
 LP="${VAAPI_LOW_POWER:-0}"
 
 if [ "${LINUX_ENCODER:-vaapi}" = "vaapi" ]; then

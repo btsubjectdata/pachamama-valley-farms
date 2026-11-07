@@ -15,6 +15,8 @@ AMAP="1:a:0"; AF="anull"
 if [ "${AUDIO:-silent}" = "camera" ]; then
   AMAP="0:a:0"
   AF="aresample=async=1000:first_pts=0,highpass=f=${AUDIO_HIGHPASS:-200}:poles=2,highpass=f=${AUDIO_HIGHPASS:-200}:poles=2,afftdn=nr=${AUDIO_DENOISE:-10}:nf=-50:tn=1,lowpass=f=7800,volume=${AUDIO_GAIN:-1.0},alimiter=limit=0.9:level=disabled"
+  # AUDIO_FILTER="off" in stream.env = out-of-the-box camera sound (no wind filter, denoise, EQ or gain); only timing resample.
+  [ "${AUDIO_FILTER:-on}" = "off" ] && AF="aresample=async=1000:first_pts=0"
 fi
 
 if [ "${LINUX_ENCODER:-vaapi}" = "vaapi" ]; then
@@ -27,7 +29,7 @@ else
          -b:v "$VB" -maxrate "$VB" -bufsize "$((${VB%k} * 2))k" -g "$((FPS * 2))" -keyint_min "$((FPS * 2))")
 fi
 
-echo "$(date '+%F %T') starting restream for $CAM (encoder=${LINUX_ENCODER:-vaapi} ${W}x${H}@${FPS} ${VB} audio=${AUDIO:-silent})"
+echo "$(date '+%F %T') starting restream for $CAM (encoder=${LINUX_ENCODER:-vaapi} ${W}x${H}@${FPS} ${VB} audio=${AUDIO:-silent} filter=${AUDIO_FILTER:-on})"
 exec ffmpeg -hide_banner -loglevel error -nostdin "${HW[@]}" \
   -rtsp_transport tcp -timeout 10000000 -use_wallclock_as_timestamps 1 -fflags +genpts+discardcorrupt \
   -i "$RTSPS_URL" \
