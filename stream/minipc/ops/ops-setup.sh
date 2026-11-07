@@ -52,7 +52,7 @@ sudo -u "$ADMIN" mkdir -p "$W"
 sudo -u "$ADMIN" bash -c "cat > '$W/CLAUDE.md'" <<'MD'
 # beehive1 - Pachamama Valley Farm bee cam relay
 This mini PC streams the bee yard camera to YouTube (4K) and the website (1080p HLS via Cloudflare Tunnel).
-- Everything lives in /opt/pvf-stream (run as system user `pvf`). Services: pvf-restream, pvf-hls, pvf-hlsserve, pvf-tunnel, pvf-watchdog.
+- Everything lives in /opt/pvf-stream (run as system user `pvf`). Services: pvf-restream, pvf-restream@hog (each = YouTube + website HLS from one decode), pvf-hlsserve, pvf-tunnel, pvf-watchdog, pvf-hogalert.
 - Status: `sudo pvf-status`; logs in /opt/pvf-stream/logs/; YouTube state in /opt/pvf-stream/hls/status.json.
 - Settings: /opt/pvf-stream/stream.env and linux.env. NEVER print, log or commit the YouTube stream key, the Google token/client files, or the Cloudflare tunnel credentials.
 - Source code: github.com/btsubjectdata/pachamama-valley-farms, folder stream/minipc. Update with `sudo bash ~/update.sh`.

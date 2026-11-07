@@ -29,8 +29,8 @@ say "Service user and files"
 id pvf >/dev/null 2>&1 || useradd --system --home-dir "$D" --shell /usr/sbin/nologin pvf
 for g in video render; do getent group $g >/dev/null && usermod -aG $g pvf; done
 mkdir -p "$D"/{logs,hls,cloudflared}
-for f in restream.sh hls.sh serve.py; do curl -fsSL "$REPO_RAW/$f" -o "$D/$f"; done
-chmod 755 "$D/restream.sh" "$D/hls.sh" "$D/serve.py"
+for f in restream.sh serve.py trial-4k.sh; do curl -fsSL "$REPO_RAW/$f" -o "$D/$f"; done
+chmod 755 "$D/restream.sh" "$D/serve.py" "$D/trial-4k.sh"
 
 T=$(mktemp -d); tar -xzf "$BUNDLE" -C "$T"
 install -m 600 "$T/stream.env" "$D/stream.env"
@@ -97,8 +97,7 @@ StandardError=append:$D/logs/$1.log
 WantedBy=multi-user.target
 U
 }
-unit pvf-restream "Bee cam to YouTube Live" "/bin/bash $D/restream.sh"
-unit pvf-hls "Bee cam HLS backup feed" "/bin/bash $D/hls.sh"
+unit pvf-restream "Bee cam to YouTube Live + website HLS feed" "/bin/bash $D/restream.sh"
 unit pvf-hlsserve "Bee cam HLS file server (localhost only)" "/usr/bin/python3 $D/serve.py"
 unit pvf-tunnel "Cloudflare Tunnel for cam.pachamamavalleyfarms.com" "/usr/bin/cloudflared --no-autoupdate tunnel --config $D/cloudflared/pvf-cam.yml run"
 cat > /etc/logrotate.d/pvf-stream <<LR
@@ -116,7 +115,7 @@ cat > /usr/local/sbin/pvf-go-live <<'GL'
 #!/bin/bash
 # Start the bee cam relay on this PC. Stop the Mac relay FIRST (Run-PVF-StopMac on the Mac).
 set -u
-S="pvf-hlsserve pvf-hls pvf-tunnel pvf-restream"
+S="pvf-hlsserve pvf-tunnel pvf-restream"
 systemctl enable --now $S
 sleep 25
 for s in $S; do printf "%-14s %s\n" "$s" "$(systemctl is-active $s)"; done
@@ -126,13 +125,13 @@ tail -3 /opt/pvf-stream/logs/pvf-restream.log
 GL
 cat > /usr/local/sbin/pvf-status <<'ST'
 #!/bin/bash
-for s in pvf-restream pvf-hls pvf-hlsserve pvf-tunnel; do printf "%-14s %s\n" "$s" "$(systemctl is-active $s)"; done
+for s in pvf-restream pvf-hlsserve pvf-tunnel pvf-watchdog $(systemctl list-units --plain --no-legend "pvf-restream@*" | awk "{print \$1}"); do printf "%-14s %s\n" "$s" "$(systemctl is-active $s)"; done
 echo; echo "CPU/GPU load:"; top -bn1 | head -5 | tail -3
 echo; tail -5 /opt/pvf-stream/logs/pvf-restream.log | sed -E 's/[A-Za-z0-9]{4}(-[A-Za-z0-9]{4}){4}/****/g'
 ST
 cat > /usr/local/sbin/pvf-stop <<'SP'
 #!/bin/bash
-systemctl disable --now pvf-restream pvf-hls pvf-tunnel pvf-hlsserve && echo "relay stopped on this PC"
+systemctl disable --now pvf-restream "pvf-restream@*" pvf-tunnel pvf-hlsserve && echo "relay stopped on this PC"
 SP
 chmod 755 /usr/local/sbin/pvf-go-live /usr/local/sbin/pvf-status /usr/local/sbin/pvf-stop
 shred -u "$BUNDLE" 2>/dev/null || rm -f "$BUNDLE"

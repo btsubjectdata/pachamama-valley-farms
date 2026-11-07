@@ -45,13 +45,15 @@ done
 # ---- status snapshot ----
 {
   echo "updated: $(date '+%F %T %Z')"; echo "host: $(hostname)  uptime:$(uptime -p)"
-  echo; echo "== services"; for s in pvf-restream pvf-hls pvf-hlsserve pvf-tunnel pvf-watchdog pvf-claude-rc pvf-ops-sync.timer $(systemctl list-units --plain --no-legend "pvf-*@*" 2>/dev/null | awk "{print \$1}"); do printf "%-20s %s\n" "$s" "$(systemctl is-active $s 2>/dev/null)"; done
+  echo; echo "== services"; for s in pvf-restream pvf-hlsserve pvf-tunnel pvf-watchdog pvf-hogalert pvf-claude-rc pvf-ops-sync.timer $(systemctl list-units --plain --no-legend "pvf-*@*" 2>/dev/null | awk "{print \$1}"); do printf "%-20s %s\n" "$s" "$(systemctl is-active $s 2>/dev/null)"; done
   echo; echo "== load"; top -bn1 | head -5
+  echo; echo "== restarts"; for u in pvf-restream $(systemctl list-units --plain --no-legend "pvf-restream@*" | awk "{print \$1}"); do printf "%-20s NRestarts=%s active since %s\n" "$u" "$(systemctl show -p NRestarts --value $u)" "$(systemctl show -p ActiveEnterTimestamp --value $u)"; done
+  echo; echo "== gpu"; cat /sys/class/drm/card*/gt_cur_freq_mhz 2>/dev/null | head -1 | sed 's/^/gt MHz: /'; timeout 3 intel_gpu_top -J -s 1000 2>/dev/null | head -60 | grep -E '"busy"|"Video"|"Render' | head -6
   echo; echo "== disk"; df -h / | tail -1
   echo; echo "== youtube status.json"; cat $D/hls/status.json 2>/dev/null
   echo; echo "== versions"; ffmpeg -version 2>/dev/null | head -1; cloudflared --version 2>/dev/null; . /etc/os-release; echo "$PRETTY_NAME"
 } 2>&1 | redact > status/summary.txt
-for l in pvf-restream pvf-hls pvf-watchdog pvf-tunnel pvf-restream-hog pvf-hls-hog; do [ -f "$D/logs/$l.log" ] || continue; tail -200 "$D/logs/$l.log" 2>/dev/null | redact > "status/$l.log"; done
+for l in pvf-restream pvf-watchdog pvf-tunnel pvf-restream-hog pvf-hogalert pvf-trial-4k; do [ -f "$D/logs/$l.log" ] || continue; tail -200 "$D/logs/$l.log" 2>/dev/null | redact > "status/$l.log"; done
 grep -vE '^(YT_STREAM_KEY|RTSPS_URL)=' $D/stream.env 2>/dev/null | redact > status/stream.env.public
 cat $D/linux.env 2>/dev/null | redact > status/linux.env
 for c in $D/cams/*.env; do [ -f "$c" ] || continue; grep -vE '^(YT_STREAM_KEY|RTSPS_URL)=' "$c" | redact > "status/cam-$(basename "$c").public"; done
