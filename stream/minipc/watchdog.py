@@ -153,12 +153,19 @@ def find_broadcast(stream_id, broadcasts):
 def create_broadcast(cam, stream_id):
     TITLE, DESC = cam["title"], cam["desc"]
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    b = yt("POST", "liveBroadcasts", {"part": "snippet,status,contentDetails"}, {
-        "snippet": {"title": TITLE, "description": DESC, "scheduledStartTime": now},
-        "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False},
-        "contentDetails": {"enableAutoStart": True, "enableAutoStop": False, "enableDvr": True,
-                           "latencyPreference": "normal", "recordFromStart": False,  # no replay saved unless Bradley asks
-                           "monitorStream": {"enableMonitorStream": False}}})
+    body = {"snippet": {"title": TITLE, "description": DESC, "scheduledStartTime": now},
+            "status": {"privacyStatus": "public", "selfDeclaredMadeForKids": False},
+            "contentDetails": {"enableAutoStart": True, "enableAutoStop": False, "enableDvr": True,
+                               "latencyPreference": "normal", "recordFromStart": False,  # no replay saved unless Bradley asks
+                               "monitorStream": {"enableMonitorStream": False}}}
+    try:
+        b = yt("POST", "liveBroadcasts", {"part": "snippet,status,contentDetails"}, body)
+    except RuntimeError as e:
+        if "disableRecordingNotAllowed" not in str(e): raise
+        # YouTube no longer lets this channel turn recording off; the replay gets removed by tidy_replays() instead.
+        del body["contentDetails"]["recordFromStart"]
+        b = yt("POST", "liveBroadcasts", {"part": "snippet,status,contentDetails"}, body)
+        log(f"[{cam['key']}] YouTube refused recordFromStart=false; replay will be deleted once the broadcast ends")
     yt("POST", "liveBroadcasts/bind", {"part": "id,contentDetails", "id": b["id"], "streamId": stream_id})
     try:  # category People & Blogs, same as before
         yt("PUT", "videos", {"part": "snippet"}, {"id": b["id"], "snippet": {"title": TITLE, "description": DESC, "categoryId": "22"}})
@@ -239,8 +246,26 @@ def write_status(results):
     save(STATUS, {"youtube_live": bees["youtube_live"], "video_id": bees["video_id"], "cams": results,
                   "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}, 0o644)
 
+def tidy_replays(state, now):
+    """Delete finished replays of the watchdog's own broadcasts (title match), since Bradley wants no streams
+    saved unless he asks. Set KEEP_REPLAYS=1 in stream.env to keep them. Runs every 10 minutes."""
+    if env_get(f"{D}/stream.env", "KEEP_REPLAYS") == "1": return
+    if now - state.get("_tidy", 0) < 600: return
+    state["_tidy"] = now
+    titles = {c["title"] for c in CAMS}
+    done = yt("GET", "liveBroadcasts", {"part": "id,snippet,status", "broadcastStatus": "completed",
+                                        "broadcastType": "all", "maxResults": 25}).get("items", [])
+    for b in done:
+        if b["snippet"]["title"] in titles and b["status"]["lifeCycleStatus"] == "complete":
+            try:
+                yt("DELETE", "videos", {"id": b["id"]}); log("deleted finished replay", b["id"], b["snippet"]["title"])
+            except Exception as e:
+                log("replay delete failed:", b["id"], str(e).splitlines()[0][:160])
+
 def check(state):
     now = time.time()
+    try: tidy_replays(state, now)
+    except Exception as e: log("replay tidy failed:", str(e).splitlines()[0][:200])
     mine = yt("GET", "liveStreams", {"part": "id,snippet,cdn,status", "mine": "true", "maxResults": 50}).get("items", [])
     broadcasts = list_broadcasts()
     results = {}

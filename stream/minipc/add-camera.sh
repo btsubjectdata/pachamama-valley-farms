@@ -10,9 +10,13 @@ install -d -m 700 -o pvf -g pvf "$D/cams"
 E="$D/cams/$NAME.env"
 if [ ! -f "$E" ]; then
   cat > "$E" <<ENV
-# $NAME camera. Values here override stream.env (audio filter, size, bitrate inherit from there).
+# $NAME camera. Values here override stream.env (audio filter settings inherit from there).
 RTSPS_URL="$URL"
 YT_STREAM_KEY="PENDING"
+# The Intel GPU keeps up with one 4K YouTube encode plus the HLS feeds; a second camera at 4K falls behind and
+# UniFi drops the RTSP session every minute or two. 1440p is the proven safe size for the second camera.
+SCALE="2560:1440"
+VIDEO_BITRATE="10000k"
 ENV
   chmod 600 "$E"; chown pvf:pvf "$E"
 fi
