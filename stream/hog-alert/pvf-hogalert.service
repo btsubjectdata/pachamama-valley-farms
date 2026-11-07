@@ -1,0 +1,21 @@
+[Unit]
+Description=Feral hog alert (MegaDetector + Claude -> Pushover)
+After=network-online.target pvf-hlsserve.service
+Wants=network-online.target
+
+[Service]
+User=pvf
+Group=pvf
+Environment=HOME=@W@
+Environment=TORCH_HOME=@W@/models
+Environment=OMP_NUM_THREADS=4
+WorkingDirectory=@SRC@
+ExecStart=@W@/venv/bin/python @SRC@/hog_alert.py
+Restart=always
+RestartSec=15
+Nice=10
+StandardOutput=append:/opt/pvf-stream/logs/pvf-hogalert.log
+StandardError=append:/opt/pvf-stream/logs/pvf-hogalert.log
+
+[Install]
+WantedBy=multi-user.target

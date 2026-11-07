@@ -1,0 +1,6 @@
+# hog alert runtime files (never commit)
+stream/hog-alert/hog-alert.env
+stream/hog-alert/hits/
+stream/hog-alert/models/
+stream/hog-alert/venv/
+__pycache__/

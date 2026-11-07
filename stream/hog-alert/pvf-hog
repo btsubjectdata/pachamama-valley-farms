@@ -1,0 +1,20 @@
+#!/bin/bash
+# Hog alert helper.  sudo pvf-hog            status
+#                    sudo pvf-hog test [p]   send a test push (priority p, default 0; 2 = emergency)
+#                    sudo pvf-hog image F    run the detector + classifier on one picture
+#                    sudo pvf-hog log        follow the log
+#                    sudo pvf-hog hits       list today's detections
+#                    sudo pvf-hog update     pull the latest code and restart
+W=/opt/pvf-stream/hog-alert; R="$W/repo"; SRC="$R/stream/hog-alert"; PY="$W/venv/bin/python"; S="$SRC/hog_alert.py"
+run() { sudo -u pvf env HOME="$W" TORCH_HOME="$W/models" "$PY" "$S" "$@"; }
+case "${1:-status}" in
+  test)   run --test-push "${2:-0}" ;;
+  image)  run --image "$2" ;;
+  log)    tail -f /opt/pvf-stream/logs/pvf-hogalert.log ;;
+  hits)   ls -1 "$W/hits/$(date +%Y%m%d)" 2>/dev/null | grep '\.json$' | sed 's/\.json$//' || echo "no detections today" ;;
+  update) git -C "$R" pull -q --ff-only && sudo -u pvf "$W/venv/bin/pip" install -q -r "$SRC/requirements.txt" \
+          && systemctl restart pvf-hogalert && echo "updated and restarted" ;;
+  *)      printf "%-14s %s\n" pvf-hogalert "$(systemctl is-active pvf-hogalert)"
+          run --status | sed -E 's/"last_verdict": \{[^}]*\}/"last_verdict": {...}/'
+          echo; tail -5 /opt/pvf-stream/logs/pvf-hogalert.log ;;
+esac
