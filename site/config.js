@@ -13,6 +13,10 @@ window.PVF_CONFIG = {
   // Shown in the caption under the feed.
   TIMEZONE: "America/Chicago",
 
+  // Local weather in the caption, from the National Weather Service (free, no key).
+  // KJDD = Wood County Airport, Quitman, the nearest reporting station to the farm. Empty string turns it off.
+  WEATHER_STATION: "KJDD",
+
   // Set to true once the restream is running, so the page embeds the live player
   // instead of the "coming soon" card.
   STREAM_ENABLED: false,

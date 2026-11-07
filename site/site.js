@@ -135,6 +135,35 @@
   tick();
   setInterval(tick, 30000);
 
+  // --- Local weather in the caption (NWS, refreshed every 10 minutes) ---------
+  var weatherEls = Array.prototype.slice.call(document.querySelectorAll(".cap-weather"));
+  var station = (cfg.WEATHER_STATION || "").trim();
+  function windWords(mps, deg) {
+    if (mps == null) return "";
+    var mph = Math.round(mps * 2.23694);
+    if (mph < 1) return "calm";
+    var dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+    var d = deg == null ? "" : " " + dirs[Math.round(deg / 45) % 8];
+    return "wind " + mph + " mph" + d;
+  }
+  function weather() {
+    fetch("https://api.weather.gov/stations/" + encodeURIComponent(station) + "/observations/latest", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (o) {
+        var p = o && o.properties; if (!p) return;
+        var parts = [];
+        if (p.temperature && p.temperature.value != null) parts.push(Math.round(p.temperature.value * 9 / 5 + 32) + " °F");
+        if (p.textDescription) parts.push(p.textDescription.toLowerCase());
+        var w = windWords(p.windSpeed && p.windSpeed.value, p.windDirection && p.windDirection.value);
+        if (w) parts.push(w);
+        if (p.relativeHumidity && p.relativeHumidity.value != null) parts.push(Math.round(p.relativeHumidity.value) + "% humidity");
+        var text = parts.length ? " · " + parts.join(", ") : "";
+        weatherEls.forEach(function (el) { el.textContent = text; el.title = "Nearest weather station: " + (p.stationName || station); });
+      })
+      .catch(function () {});
+  }
+  if (station && weatherEls.length) { weather(); setInterval(weather, 600000); }
+
   // --- Footer year ----------------------------------------------------------
   var y = document.getElementById("year");
   if (y) y.textContent = String(new Date().getFullYear());
