@@ -197,7 +197,7 @@ def classify(jpeg, model=None, api_key=None):
     """Ask Claude about one crop. Returns dict(hog, confidence, animal, count) or None on API failure."""
     model = model or CFG["CLAUDE_MODEL"]; api_key = api_key or CFG.get("ANTHROPIC_API_KEY")
     if not api_key: log("no ANTHROPIC_API_KEY; cannot classify"); return None
-    body = {"model": model, "max_tokens": 120,
+    body = {"model": model, "max_tokens": 400, "thinking": {"type": "disabled"},   # a yes/no needs no deliberation
             "messages": [{"role": "user", "content": [
                 {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
                                              "data": base64.b64encode(jpeg).decode()}},
