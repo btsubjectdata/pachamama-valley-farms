@@ -12,7 +12,7 @@ id pvf >/dev/null 2>&1 || { echo "The pvf-stream relay must be installed first (
 
 say "Packages"
 export DEBIAN_FRONTEND=noninteractive
-apt-get install -y -qq git python3-venv python3-pip ffmpeg >/dev/null
+apt-get install -y -qq git python3-venv python3-pip ffmpeg libgl1 libglib2.0-0 >/dev/null   # libgl1+glib: OpenCV (pulled in by ultralytics) needs them even headless
 
 say "Source -> $SRC"
 install -d -m 755 -o pvf -g pvf "$W" "$W/hits"
