@@ -47,14 +47,16 @@ class LogicTests(unittest.TestCase):
 class ConfigTests(unittest.TestCase):
     def test_env_file_and_quotes(self):
         with open(os.environ["HOG_ALERT_ENV"], "w") as f:
-            f.write('PUSHOVER_TOKEN="abc"\nCOOLDOWN=60\n# comment\nexport FPS=\'3\'\n')
+            f.write('PUSHOVER_TOKEN="abc"\nCOOLDOWN=60 # trailing comment\n# comment\nexport FPS=\'3\'\nANTHROPIC_API_KEY=""     # console.anthropic.com -> API keys\nALERT_URL="https://x/#hogcam"\n')
         cfg = h.load_cfg()
         self.assertEqual(cfg["PUSHOVER_TOKEN"], "abc"); self.assertEqual(h.i("COOLDOWN"), 60)
+        self.assertEqual(cfg["ANTHROPIC_API_KEY"], ""); self.assertEqual(cfg["ALERT_URL"], "https://x/#hogcam")
         self.assertEqual(h.f("FPS"), 3.0); self.assertEqual(cfg["CONFIRMATIONS"], "2")
 
 
 class PushoverTests(unittest.TestCase):
-    def setUp(self): h.load_cfg()
+    def setUp(self):
+        open(os.environ["HOG_ALERT_ENV"], "w").close(); h.load_cfg()
 
     def test_emergency_fields(self):
         fl = h.pushover_fields("Hog", "msg")

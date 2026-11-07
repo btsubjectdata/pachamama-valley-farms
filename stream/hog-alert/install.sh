@@ -16,8 +16,7 @@ apt-get install -y -qq git python3-venv python3-pip ffmpeg libgl1 libglib2.0-0 >
 
 say "Source -> $SRC"
 install -d -m 755 -o pvf -g pvf "$W" "$W/hits"
-if [ -d "$CLONE/.git" ]; then git -C "$CLONE" pull -q --ff-only; else git clone -q --depth 1 "$REPO" "$CLONE"; fi
-chown -R pvf:pvf "$CLONE"
+if [ -d "$CLONE/.git" ]; then sudo -u pvf git -C "$CLONE" pull -q --ff-only; else git clone -q --depth 1 "$REPO" "$CLONE"; chown -R pvf:pvf "$CLONE"; fi
 
 say "Python venv (CPU-only torch; ~1 GB, a few minutes the first time)"
 [ -x "$W/venv/bin/python" ] || sudo -u pvf python3 -m venv "$W/venv"

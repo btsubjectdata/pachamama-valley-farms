@@ -12,7 +12,7 @@ case "${1:-status}" in
   image)  run --image "$2" ;;
   log)    tail -f /opt/pvf-stream/logs/pvf-hogalert.log ;;
   hits)   ls -1 "$W/hits/$(date +%Y%m%d)" 2>/dev/null | grep '\.json$' | sed 's/\.json$//' || echo "no detections today" ;;
-  update) git -C "$R" pull -q --ff-only && sudo -u pvf "$W/venv/bin/pip" install -q -r "$SRC/requirements.txt" \
+  update) sudo -u pvf git -C "$R" pull -q --ff-only && sudo -u pvf "$W/venv/bin/pip" install -q -r "$SRC/requirements.txt" \
           && systemctl restart pvf-hogalert && echo "updated and restarted" ;;
   *)      printf "%-14s %s\n" pvf-hogalert "$(systemctl is-active pvf-hogalert)"
           run --status | sed -E 's/"last_verdict": \{[^}]*\}/"last_verdict": {...}/'

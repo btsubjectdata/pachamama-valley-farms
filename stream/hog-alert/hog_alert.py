@@ -64,7 +64,8 @@ def load_cfg():
             m = re.match(r'^\s*(?:export\s+)?([A-Z0-9_]+)\s*=\s*(.*?)\s*$', line)
             if m:
                 v = m.group(2)
-                if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'": v = v[1:-1]
+                q = re.match(r'^(["\'])(.*?)\1', v)          # quoted value: take what's inside the quotes
+                v = q.group(2) if q else v.split(" #", 1)[0].split("\t#", 1)[0].strip()   # bare value: drop trailing comment
                 cfg[m.group(1)] = v
     for k in DEFAULTS:  # real environment wins (handy for tests and one-off runs)
         if k in os.environ: cfg[k] = os.environ[k]
@@ -309,7 +310,8 @@ def run():
     det = Detector(CFG["DET_MODEL"], i("DET_IMGSZ")); det.load()
     src = FrameSource(CFG["SOURCE_URL"], f("FPS")); src.start()
     min_area = f("DET_MIN_AREA") * src.w * src.h
-    last_classify = 0.0; last_state = 0.0; last_prune = 0.0
+    last_classify = 0.0; last_state = 0.0; last_prune = 0.0; api_fail = 0; api_pause_until = 0.0
+    if not CFG.get("ANTHROPIC_API_KEY"): log("no ANTHROPIC_API_KEY yet: animals are detected and saved, but not classified")
     log(f"watching for hogs: confirm {CFG['CONFIRMATIONS']}x in {CFG['CONFIRM_WINDOW']}s, cooldown {CFG['COOLDOWN']}s, "
         f"dry_run={CFG['DRY_RUN']}")
     while True:
@@ -323,10 +325,18 @@ def run():
         now = time.time()
         if boxes:
             st["animal_frames"] += 1; st["last_animal"] = datetime.now().isoformat(timespec="seconds")
-            if now - last_classify >= f("CLASSIFY_EVERY"):
+            if now - last_classify >= f("CLASSIFY_EVERY") and now >= api_pause_until:
                 last_classify = now
                 box = max(boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))   # biggest animal in frame
-                crop = crop_jpeg(frame, box); v = classify(crop); st["classified"] += 1
+                crop = crop_jpeg(frame, box)
+                if CFG.get("ANTHROPIC_API_KEY"):
+                    v = classify(crop); st["classified"] += 1
+                    if v is None:
+                        api_fail += 1
+                        if api_fail >= 3: api_pause_until = now + 300; api_fail = 0; log("3 API failures; pausing classification for 5 min")
+                    else: api_fail = 0
+                else:
+                    v = None; last_classify = now + 26   # no key: keep one crop every ~30 s for review, nothing else
                 alert = logic.verdict(v)
                 st["last_verdict"] = v
                 if v: log(f"animal det={box[4]:.2f} -> {v['animal']!r} hog={v['hog']} conf={v['confidence']:.2f}")
