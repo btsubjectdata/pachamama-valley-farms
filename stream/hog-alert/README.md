@@ -18,11 +18,13 @@ hog cam 720p feed (localhost HLS)  ──2 fps──▶  MegaDetector v6  ──
    against UniFi (a second 4K pull is what made Protect drop sessions on Nov 6).
 2. **MegaDetector v6** (Microsoft's trail-camera model, built for IR night footage) runs on the CPU and says whether
    there is an *animal* in the frame. The Intel GPU is untouched; it keeps doing the YouTube encodes.
-3. When an animal is present, the largest one is **cropped** (with some context) and sent to **Claude** (Haiku,
-   vision) at most once every 4 s, asking "feral hog or not?" with a confidence. That is a handful of API calls per
+3. When an animal is present, the largest one is **cropped** and sent to **Claude** (Haiku, vision) together with the
+   whole frame, at most once every 4 s (every 20 s once Claude is sure it's a deer), asking "feral hog or not?" with
+   a confidence and explicit deer-vs-hog cues. That is a handful of API calls per
    animal visit - pennies a month.
-4. **Two hog verdicts** (confidence ≥ 0.7) inside **45 s** = one **Pushover emergency push** with the snapshot and a
-   link to the hog cam page. It repeats every 60 s until acknowledged (up to 30 min) and gets through Do Not
+4. **Three hog verdicts** (confidence ≥ 0.7; ≥ 0.9 if the animal is cut off by the frame edge, where a headless
+   deer looks like a hog) inside **45 s**, with no confident "deer" in between = one **Pushover emergency push** with
+   the frame (yellow box around the animal + enlarged inset) and a link to the hog cam page. It repeats every 60 s until acknowledged (up to 30 min) and gets through Do Not
    Disturb. Then a **15 min cooldown**, so a sounder rooting around is one alert, not forty.
 5. Every classified crop and verdict is saved under `/opt/pvf-stream/hog-alert/hits/<date>/` (30 days), so false
    alarms and misses can be reviewed and thresholds tuned - and later a local hog classifier can be trained on it.

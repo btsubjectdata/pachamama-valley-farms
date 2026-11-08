@@ -39,9 +39,13 @@ DEFAULTS = {
     "DET_MIN_CONF": "0.25",          # MegaDetector animal confidence to bother classifying
     "DET_MIN_AREA": "0.004",         # ignore animals smaller than this fraction of the frame (bugs, far birds)
     "CLASSIFY_EVERY": "4",           # seconds between Claude calls while an animal stays in frame
+    "CLASSIFY_EVERY_CALM": "20",     # ... after a confident "not a hog" (regular deer visits cost less)
+    "ALERT_TZ": "America/Chicago",   # time zone for messages, logs and hit file names
     "CLAUDE_MODEL": "claude-haiku-5-5",
     "HOG_MIN_CONF": "0.7",           # Claude's confidence that it is a hog
-    "CONFIRMATIONS": "2",            # hog verdicts needed ...
+    "EDGE_MIN_CONF": "0.9",          # ... when the animal is cut off by the frame edge (head often out of view)
+    "CLEAR_ON_OTHER_CONF": "0.8",    # a non-hog verdict this confident resets the confirmation count
+    "CONFIRMATIONS": "3",            # hog verdicts needed ...
     "CONFIRM_WINDOW": "45",          # ... inside this many seconds
     "COOLDOWN": "900",               # seconds between alerts (15 min)
     "PUSHOVER_PRIORITY": "2",        # 2 = emergency: repeats until acknowledged, bypasses Do Not Disturb
@@ -72,6 +76,7 @@ def load_cfg():
     for k in ("PUSHOVER_TOKEN", "PUSHOVER_USER", "ANTHROPIC_API_KEY"):
         if k in os.environ: cfg[k] = os.environ[k]
     CFG.clear(); CFG.update(cfg)
+    os.environ["TZ"] = cfg["ALERT_TZ"]; time.tzset()
     return cfg
 
 def f(k): return float(CFG[k])
@@ -179,6 +184,23 @@ def crop_jpeg(frame, box, pad=0.25, max_side=768, quality=85):
     im.thumbnail((max_side, max_side))
     b = io.BytesIO(); im.save(b, "JPEG", quality=quality); return b.getvalue()
 
+def alert_jpeg(frame, box, quality=82):
+    """The push picture: whole frame with a yellow box around the animal and an enlarged inset of it."""
+    from PIL import Image, ImageDraw
+    im = Image.fromarray(frame).convert("RGB"); d = ImageDraw.Draw(im); w, h = im.size
+    x1, y1, x2, y2 = [int(v) for v in box[:4]]
+    for k in range(4): d.rectangle([x1 - k, y1 - k, x2 + k, y2 + k], outline=(255, 210, 0))
+    bw, bh = x2 - x1, y2 - y1
+    if bw > 0 and bh > 0:
+        pad = int(max(bw, bh) * 0.2)
+        crop = im.crop((max(0, x1 - pad), max(0, y1 - pad), min(w, x2 + pad), min(h, y2 + pad)))
+        side = int(min(w, h) * 0.45); crop.thumbnail((side, side))
+        # put the inset in whichever top corner is further from the animal
+        ix = 12 if (x1 + x2) / 2 > w / 2 else w - crop.width - 12
+        d.rectangle([ix - 4, 8, ix + crop.width + 4, 12 + crop.height + 4], fill=(0, 0, 0), outline=(255, 210, 0), width=3)
+        im.paste(crop, (ix, 12))
+    b = io.BytesIO(); im.save(b, "JPEG", quality=quality); return b.getvalue()
+
 def frame_jpeg(frame, max_side=1280, quality=80):
     from PIL import Image
     im = Image.fromarray(frame); im.thumbnail((max_side, max_side))
@@ -186,22 +208,28 @@ def frame_jpeg(frame, max_side=1280, quality=80):
 
 # ---------- stage 2: hog or not (Claude vision) ----------
 PROMPT = (
-    "This is a crop from a fixed trail camera on a feral hog corral trap in East Texas. At night the image is "
-    "black-and-white infrared. An animal detector flagged something here. Decide whether the animal is a feral hog "
-    "(wild pig/boar, any age or size, including piglets). Deer, raccoons, opossums, armadillos, coyotes, dogs, cats, "
-    "cattle, birds, people and empty frames are NOT hogs. Answer with JSON only, no prose: "
+    "Two images from a fixed trail camera on a feral hog corral trap in East Texas: first the whole frame, then a "
+    "close crop of the animal a detector flagged. At night the images are black-and-white infrared. Decide whether "
+    "the animal is a feral hog (wild pig/boar, any age, including piglets).\n"
+    "White-tailed deer visit this trap every night and are the usual false alarm. Deer: long thin legs, long neck, "
+    "narrow head with large ears, slender body, white tail/rump patch, often grazing head-down. Hog: short legs, "
+    "barrel-shaped body, massive head and shoulders with almost no neck, straight back or shoulder hump, snout, "
+    "small eyes, tail hangs straight, usually in a group. Raccoons, opossums, armadillos, coyotes, dogs, cats, "
+    "cattle, birds and people are NOT hogs.\n"
+    "If the head or legs are not visible, or the animal is cut off by the edge of the frame, or it is too small or "
+    "blurry to see body shape, say so in 'animal' and keep confidence at or below 0.5. Only give confidence above "
+    "0.8 when you can see hog features clearly. Answer with JSON only, no prose: "
     '{"hog": true|false, "confidence": 0.0-1.0, "animal": "<what you think it is>", "count": <number of hogs>}'
 )
 
-def classify(jpeg, model=None, api_key=None):
-    """Ask Claude about one crop. Returns dict(hog, confidence, animal, count) or None on API failure."""
+def classify(jpeg, model=None, api_key=None, frame_jpg=None):
+    """Ask Claude about one crop (plus the whole frame for context). Returns dict(hog, confidence, animal, count) or None."""
     model = model or CFG["CLAUDE_MODEL"]; api_key = api_key or CFG.get("ANTHROPIC_API_KEY")
     if not api_key: log("no ANTHROPIC_API_KEY; cannot classify"); return None
+    img = lambda b: {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": base64.b64encode(b).decode()}}
+    content = ([img(frame_jpg)] if frame_jpg else []) + [img(jpeg), {"type": "text", "text": PROMPT}]
     body = {"model": model, "max_tokens": 400, "thinking": {"type": "disabled"},   # a yes/no needs no deliberation
-            "messages": [{"role": "user", "content": [
-                {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
-                                             "data": base64.b64encode(jpeg).decode()}},
-                {"type": "text", "text": PROMPT}]}]}
+            "messages": [{"role": "user", "content": content}]}
     req = urllib.request.Request("https://api.anthropic.com/v1/messages", json.dumps(body).encode(),
                                  {"content-type": "application/json", "x-api-key": api_key,
                                   "anthropic-version": "2023-06-01"})
@@ -265,21 +293,28 @@ def pushover(title, message, jpeg=None, priority=None):
 
 # ---------- the decision logic (pure, so it is testable) ----------
 class HogLogic:
-    """Feed it classifier verdicts; it says when to alert. Confirmations inside a window, then a cooldown."""
-    def __init__(self, confirmations, window, cooldown, min_conf, now=time.time):
+    """Feed it classifier verdicts; it says when to alert. Confirmations inside a window, then a cooldown.
+    A partial view (animal cut off by the frame edge) needs edge_conf; a confident non-hog verdict clears the count."""
+    def __init__(self, confirmations, window, cooldown, min_conf, now=time.time, edge_conf=0.9, clear_conf=0.8):
         self.n, self.window, self.cooldown, self.min_conf, self.now = confirmations, window, cooldown, min_conf, now
+        self.edge_conf, self.clear_conf = edge_conf, clear_conf
         self.hits = deque(); self.last_alert = 0.0
 
-    def verdict(self, v):
+    def verdict(self, v, partial=False):
         """Returns True when an alert should go out now."""
         t = self.now()
         while self.hits and t - self.hits[0] > self.window: self.hits.popleft()
-        if not (v and v["hog"] and v["confidence"] >= self.min_conf): return False
+        if v and not v["hog"] and v["confidence"] >= self.clear_conf: self.hits.clear(); return False
+        need = self.edge_conf if partial else self.min_conf
+        if not (v and v["hog"] and v["confidence"] >= need): return False
         self.hits.append(t)
         if len(self.hits) < self.n or t - self.last_alert < self.cooldown: return False
         self.last_alert = t; self.hits.clear(); return True
 
 # ---------- hits folder ----------
+def touches_edge(box, w, h, m=4):
+    return box[0] <= m or box[1] <= m or box[2] >= w - m or box[3] >= h - m
+
 def save_hit(frame_jpg, crop_jpg, box, verdict, alerted):
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     day = HITS + "/" + ts[:8]; os.makedirs(day, exist_ok=True)
@@ -308,12 +343,13 @@ def run():
     st.update({"started": datetime.now(timezone.utc).isoformat(), "frames": 0, "animal_frames": 0,
                "classified": 0, "hogs": st.get("hogs", 0), "alerts": st.get("alerts", 0),
                "last_alert": st.get("last_alert"), "last_animal": st.get("last_animal"), "last_verdict": None})
-    logic = HogLogic(i("CONFIRMATIONS"), f("CONFIRM_WINDOW"), f("COOLDOWN"), f("HOG_MIN_CONF"))
+    logic = HogLogic(i("CONFIRMATIONS"), f("CONFIRM_WINDOW"), f("COOLDOWN"), f("HOG_MIN_CONF"),
+                     edge_conf=f("EDGE_MIN_CONF"), clear_conf=f("CLEAR_ON_OTHER_CONF"))
     if st.get("last_alert_ts"): logic.last_alert = float(st["last_alert_ts"])  # keep cooldown across restarts
     det = Detector(CFG["DET_MODEL"], i("DET_IMGSZ")); det.load()
     src = FrameSource(CFG["SOURCE_URL"], f("FPS")); src.start()
     min_area = f("DET_MIN_AREA") * src.w * src.h
-    last_classify = 0.0; last_state = 0.0; last_prune = 0.0; api_fail = 0; api_pause_until = 0.0
+    last_classify = 0.0; last_state = 0.0; last_prune = 0.0; api_fail = 0; api_pause_until = 0.0; every = f("CLASSIFY_EVERY")
     if not CFG.get("ANTHROPIC_API_KEY"): log("no ANTHROPIC_API_KEY yet: animals are detected and saved, but not classified")
     log(f"watching for hogs: confirm {CFG['CONFIRMATIONS']}x in {CFG['CONFIRM_WINDOW']}s, cooldown {CFG['COOLDOWN']}s, "
         f"dry_run={CFG['DRY_RUN']}")
@@ -328,32 +364,37 @@ def run():
         now = time.time()
         if boxes:
             st["animal_frames"] += 1; st["last_animal"] = datetime.now().isoformat(timespec="seconds")
-            if now - last_classify >= f("CLASSIFY_EVERY") and now >= api_pause_until:
+            if now - last_classify >= every and now >= api_pause_until:
                 last_classify = now
                 box = max(boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))   # biggest animal in frame
-                crop = crop_jpeg(frame, box)
+                partial = touches_edge(box, src.w, src.h)
+                crop = crop_jpeg(frame, box); ctx = frame_jpeg(frame, max_side=1024, quality=70)
                 if CFG.get("ANTHROPIC_API_KEY"):
-                    v = classify(crop); st["classified"] += 1
+                    v = classify(crop, frame_jpg=ctx); st["classified"] += 1
                     if v is None:
                         api_fail += 1
                         if api_fail >= 3: api_pause_until = now + 300; api_fail = 0; log("3 API failures; pausing classification for 5 min")
                     else: api_fail = 0
                 else:
                     v = None; last_classify = now + 26   # no key: keep one crop every ~30 s for review, nothing else
-                alert = logic.verdict(v)
+                alert = logic.verdict(v, partial)
+                # a confident "not a hog" slows the checks while that animal hangs around; any hog call speeds them up again
+                every = f("CLASSIFY_EVERY_CALM") if (v and not v["hog"] and v["confidence"] >= f("CLEAR_ON_OTHER_CONF")) else f("CLASSIFY_EVERY")
                 st["last_verdict"] = v
-                if v: log(f"animal det={box[4]:.2f} -> {v['animal']!r} hog={v['hog']} conf={v['confidence']:.2f}")
+                if v: log(f"animal det={box[4]:.2f}{' edge' if partial else ''} -> {v['animal']!r} hog={v['hog']} conf={v['confidence']:.2f}"
+                          f"{' (needs %.2f)' % logic.edge_conf if partial and v['hog'] else ''}")
                 if v and v["hog"]: st["hogs"] += 1
-                full = frame_jpeg(frame) if (alert or (v and v["hog"])) else b""
+                full = alert_jpeg(frame, box) if (alert or (v and v["hog"])) else b""
                 base = save_hit(full, crop, box, v, alert)
                 if alert:
                     n = max(1, v.get("count", 1))
-                    msg = (f"{n} feral hog{'s' if n > 1 else ''} at the trap "
-                           f"({datetime.now().strftime('%-I:%M %p')}, confidence {int(v['confidence'] * 100)}%).")
+                    msg = (f"{n} feral hog{'s' if n > 1 else ''} at the trap, {datetime.now().strftime('%-I:%M %p')} "
+                           f"({v['animal']}, confidence {int(v['confidence'] * 100)}%).")
                     ok = pushover("Hog at the trap", msg, full)
                     st["alerts"] += 1; st["last_alert"] = datetime.now().isoformat(timespec="seconds")
                     st["last_alert_ts"] = now; st["last_alert_sent"] = ok
                     log(f"ALERT {'sent' if ok else 'FAILED'}: {msg}  ({os.path.relpath(base, WORK)})")
+        if not boxes: every = f("CLASSIFY_EVERY")   # animal gone: next visitor gets the fast cadence
         if now - last_state > 30:
             last_state = now; st["updated"] = datetime.now().isoformat(timespec="seconds")
             st["feed_ok"] = now - src.last < 20; save_json(STATE, st)
@@ -368,8 +409,8 @@ def test_image(path):
     boxes = det.animals(frame)
     print(f"animals found: {len(boxes)}")
     for b in boxes:
-        v = classify(crop_jpeg(frame, b))
-        print(f"  box {[round(x) for x in b[:4]]} det={b[4]:.2f} -> {v}")
+        v = classify(crop_jpeg(frame, b), frame_jpg=frame_jpeg(frame, max_side=1024, quality=70))
+        print(f"  box {[round(x) for x in b[:4]]} det={b[4]:.2f}{' edge' if touches_edge(b, frame.shape[1], frame.shape[0]) else ''} -> {v}")
 
 def main(argv):
     if "--test-push" in argv:

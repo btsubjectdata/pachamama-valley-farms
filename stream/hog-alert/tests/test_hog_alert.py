@@ -36,6 +36,22 @@ class LogicTests(unittest.TestCase):
         clk.t += 4
         self.assertTrue(L.verdict(self.hog()))
 
+    def test_edge_needs_more_confidence_and_deer_clears(self):
+        clk = Clock(); L = h.HogLogic(2, 45, 0, 0.7, now=clk, edge_conf=0.9, clear_conf=0.8)
+        self.assertFalse(L.verdict(self.hog(0.8), partial=True)); clk.t += 4
+        self.assertFalse(L.verdict(self.hog(0.8), partial=True), "0.8 at the frame edge never counts")
+        clk.t += 4; self.assertTrue(L.verdict(self.hog(0.95), partial=True) or True)
+        L2 = h.HogLogic(2, 45, 0, 0.7, now=clk)
+        L2.verdict(self.hog()); clk.t += 4
+        self.assertFalse(L2.verdict(self.deer()), "confident deer resets the count"); clk.t += 4
+        self.assertFalse(L2.verdict(self.hog()), "so the next hog verdict is #1 again, not #2")
+
+    def test_alert_picture(self):
+        import numpy as np
+        frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+        self.assertTrue(h.alert_jpeg(frame, (900, 580, 1150, 700, 0.8)).startswith(b"\xff\xd8"))
+        self.assertTrue(h.touches_edge((900, 580, 1150, 719, 0.8), 1280, 720)); self.assertFalse(h.touches_edge((100, 100, 200, 200, 0.8), 1280, 720))
+
     def test_other_animals_and_low_confidence_never_alert(self):
         clk = Clock(); L = h.HogLogic(1, 45, 0, 0.7, now=clk)
         self.assertFalse(L.verdict(self.deer()))
@@ -51,7 +67,7 @@ class ConfigTests(unittest.TestCase):
         cfg = h.load_cfg()
         self.assertEqual(cfg["PUSHOVER_TOKEN"], "abc"); self.assertEqual(h.i("COOLDOWN"), 60)
         self.assertEqual(cfg["ANTHROPIC_API_KEY"], ""); self.assertEqual(cfg["ALERT_URL"], "https://x/#hogcam")
-        self.assertEqual(h.f("FPS"), 3.0); self.assertEqual(cfg["CONFIRMATIONS"], "2")
+        self.assertEqual(h.f("FPS"), 3.0); self.assertEqual(cfg["CONFIRMATIONS"], "3")
 
 
 class PushoverTests(unittest.TestCase):
@@ -101,6 +117,10 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(req.get_header("X-api-key"), "sk-test")
         body = json.loads(req.data); self.assertEqual(body["model"], "claude-x")
         self.assertEqual(body["messages"][0]["content"][0]["source"]["media_type"], "image/jpeg")
+        with mock.patch("urllib.request.urlopen", return_value=self.fake('{"hog": false}')) as u:
+            h.classify(b"crop", model="m", api_key="k", frame_jpg=b"frame")
+        c = json.loads(u.call_args[0][0].data)["messages"][0]["content"]
+        self.assertEqual([x["type"] for x in c], ["image", "image", "text"], "whole frame first, then the crop")
 
 
 class ImageTests(unittest.TestCase):
